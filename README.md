@@ -40,3 +40,23 @@ SWはS2とS3がついていたが、PLからアクセスできないようだ。
 上記に習って、SWを取り付ける
 <br>
 <br>
+
+- 改造後の表面。U67,U68のフォトカプラをスイッチに変更
+![IMG_1937](https://github.com/user-attachments/assets/df24982a-f7ba-417b-9667-554612ee2d11)
+
+- 裏面。フォトカプラ周辺の抵抗を変更
+- D24をショートさせ、12Vを供給できるようにした
+![IMG_1938](https://github.com/user-attachments/assets/31ef4339-320d-4b37-bf7e-37de2222c8f0)
+
+### ベースボードの改造は以上
+
+## 拡張ボードの購入
+
+- ベースボードをaliexpressから購入してとりつけた
+- これが便利でUSBtypeCから電源供給できたので、 MOLEXのコネクタ不要になった。。。
+  
+![IMG_1936](https://github.com/user-attachments/assets/53625694-0ba9-476a-9733-ceae48cc8c04)
+
+### 環境のハード構築は以上
+
+
