@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="blink_ip_app" location="C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app" platform="C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/bilink_ip_platform/export/bilink_ip_platform/bilink_ip_platform.xpfm" platformUID="xilinx:::0.0(custom)" systemProject="blink_ip_app_system" sysConfig="bilink_ip_platform" runtime="C/C++" cpu="standalone_domain" cpuInstance="ps7_cortexa9_0" os="standalone" mssSignature="573a66d4a947ea586896bfb2d654251a">
+  <configuration name="Debug" id="xilinx.gnu.armv7.exe.debug.1140684288">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+    <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <configuration name="Release" id="xilinx.gnu.armv7.exe.release.480345398" dirty="true">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <template appTemplateName="hello_world"/>
+</sdkproject:SdkProject>

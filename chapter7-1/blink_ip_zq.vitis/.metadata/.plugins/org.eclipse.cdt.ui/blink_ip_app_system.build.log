@@ -1,0 +1,22 @@
+21:25:26 **** Build of configuration Debug for project blink_ip_app_system ****
+make all 
+Generating bif file for the system project
+generate_system_bif.bat 63258 C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/bilink_ip_platform/export/bilink_ip_platform/bilink_ip_platform.xpfm standalone_domain C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app_system/Debug/system.bif
+
+****** Software Commandline Tool (XSCT) v2024.2.0
+  **** SW Build 5239620 on Sun Nov 10 09:56:12 MST 2024
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+
+
+Warning: XSCT is deprecated and will be removed in future releases.
+We recommend using the new Python command-line tool for project management and debugging:
+- Run "vitis -i" for interactive mode.
+- Run "vitis -s <script>" for script mode.
+sdcard_gen --xpfm C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/bilink_ip_platform/export/bilink_ip_platform/bilink_ip_platform.xpfm --sys_config bilink_ip_platform --bif C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app_system/Debug/system.bif --bitstream C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app/_ide/bitstream/blink_ip_zq_wrapper.bit --elf C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app/Debug/blink_ip_app.elf,ps7_cortexa9_0
+creating BOOT.BIN using C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/blink_ip_app/_ide/bitstream/blink_ip_zq_wrapper.bit
+Error intializing SD boot data : Software platform XML error, sdx:qemuArguments value "bilink_ip_platform/qemu/qemu_args.txt" path does not exist C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/bilink_ip_platform/export/bilink_ip_platform/sw/bilink_ip_platform/qemu/qemu_args.txt, platform path C:/Users/yakun/ebaz4205/7sho/blink_ip_zq/blink_ip_zq.vitis/bilink_ip_platform/export/bilink_ip_platform, sdx:configuration bilink_ip_platform, sdx:image standard
+make: *** [makefile:37: package] Error 1
+
+21:25:30 Build Finished (took 4s.207ms)
+

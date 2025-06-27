@@ -1,0 +1,48 @@
+/******************************************************************************
+* Copyright (C) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+* SPDX-License-Identifier: MIT
+******************************************************************************/
+/*
+ * helloworld.c: simple test application
+ *
+ * This application configures UART 16550 to baud rate 9600.
+ * PS7 UART (Zynq) is not initialized by this application, since
+ * bootrom/bsp configures it to baud rate 115200
+ *
+ * ------------------------------------------------
+ * | UART TYPE   BAUD RATE                        |
+ * ------------------------------------------------
+ *   uartns550   9600
+ *   uartlite    Configurable only in HW design
+ *   ps7_uart    115200 (configured by bootrom/bsp)
+ */
+
+#include "xparameters.h"
+#include "xil_printf.h"
+
+#define LED *((volatile unsigned int*) XPAR_MYIP_0_S00_AXI_BASEADDR)
+
+int main()
+{
+    int i, j;
+
+    xil_printf("Hello! FPGA WORLD!\r\n");
+    xil_printf("BASEADDR = %x \n\r",XPAR_MYIP_0_S00_AXI_BASEADDR);
+
+    while(1) {
+        for ( i=0; i<5; i++ ) {
+            xil_printf("i=%d\n\r", i);
+            switch ( i ) {
+                case  0: LED = 0x4; break;
+                case  1: LED = 0x2; break;
+                case  2: LED = 0x1; break;
+                case  3: LED = 0x7; break;
+                case  4: LED = 0x0; break;
+                default: LED = 0x0;
+            }
+            for ( j=0; j<40000000; j++);
+        }
+    }
+
+    return 0;
+}
