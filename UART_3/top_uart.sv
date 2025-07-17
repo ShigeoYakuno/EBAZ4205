@@ -1,7 +1,21 @@
 // uart_top.sv
+
+
+/*
+ボーレート一覧
+921600
+460800
+230400
+115200
+57600
+38400
+19200
+9600
+
+*/
 module uart_top #(
     parameter CLK_FREQ_HZ = 50_000_000, // ZynqのPL部クロック (50MHz)
-    parameter BAUD_RATE   = 921600       // ボーレート
+    parameter BAUD_RATE   = 230400       // ボーレート
 )(
     input  logic clk,     // クロック入力 (ZynqのPL部クロック)
     input  logic rst,     // リセット入力 (アクティブハイ)

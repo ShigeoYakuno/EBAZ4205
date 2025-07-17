@@ -1,4 +1,4 @@
-// uart_controller.sv (可変ボーレート対応版)
+// uart_controller.sv (改善版：'A'受信で文字列送信)
 module uart_controller #(
     parameter CLK_FREQ = 50_000_000,  // システムクロック周波数 (Hz)
     parameter BAUD_RATE = 115200      // ボーレート (bps)
@@ -6,20 +6,20 @@ module uart_controller #(
     input  logic        clk,
     input  logic        rst,
 
-    // UART RX側インターフェース (省略せず記述)
+    // UART RX側インターフェース
     input  logic [7:0]  rx_data_in,
     input  logic        rx_valid_in,
 
-    // UART TX側インターフェース (省略せず記述)
+    // UART TX側インターフェース
     output logic [7:0]  tx_data_out,
     output logic        tx_act_out,
     input  logic        tx_busy_in,
 
-    // ユーザーインターフェース (省略せず記述)
+    // ユーザーインターフェース
     input  logic        btn1_in,    // SW1入力
     output logic        led1_out,   // PCからのコマンド制御用LED
 
-    // デバッグ用LED出力 (省略せず記述)
+    // デバッグ用LED出力
     output logic        led_tx_idle,
     output logic        led_tx_send,
     output logic        led_tx_done
@@ -34,8 +34,27 @@ module uart_controller #(
     localparam LONG_WAIT_CLKS = CHAR_TRANSMISSION_CYCLES;
     localparam WAIT_COUNTER_WIDTH = $clog2(LONG_WAIT_CLKS);
 
-    // --- PCからのコマンド処理 (led1_out 制御) ---
+    // 送信文字列の定義
+    localparam TX_STRING_LENGTH = 8;  // 送信文字列の長さ
+    logic [7:0] tx_string [TX_STRING_LENGTH-1:0]; // 送信文字列の配列
+
+    // 送信文字列を初期化（デバッグしやすい文字に変更）
+    initial begin
+        tx_string[0] = 8'h48;  // 'H'
+        tx_string[1] = 8'h65;  // 'e'
+        tx_string[2] = 8'h6C;  // 'l'
+        tx_string[3] = 8'h6C;  // 'l'
+        tx_string[4] = 8'h6F;  // 'o'
+        tx_string[5] = 8'h0D;  // CR
+        tx_string[6] = 8'h0A;  // LF
+        tx_string[7] = 8'h00;  // NULL（または別の文字）
+    end
+
+    // --- PCからのコマンド処理とイベント検出 ---
+    
+    // RX validの立ち上がりエッジ検出
     logic rx_valid_in_q;
+    logic rx_valid_posedge;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             rx_valid_in_q <= 1'b0;
@@ -43,22 +62,45 @@ module uart_controller #(
             rx_valid_in_q <= rx_valid_in;
         end
     end
+    assign rx_valid_posedge = rx_valid_in && !rx_valid_in_q;
 
+    // LED制御と送信トリガー生成
+    logic tx_start_trigger;  // 送信開始トリガー
+    logic tx_start_trigger_q; // 送信トリガーを1クロック延長
+    logic tx_start_request;   // 送信要求フラグ（ラッチ）
+    
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             led1_out <= 1'b0;
+            tx_start_trigger <= 1'b0;
+            tx_start_trigger_q <= 1'b0;
+            tx_start_request <= 1'b0;
         end else begin
-            if (rx_valid_in && !rx_valid_in_q) begin
+            tx_start_trigger <= 1'b0;  // デフォルトでクリア
+            tx_start_trigger_q <= tx_start_trigger; // 1クロック遅延
+            
+            if (rx_valid_posedge) begin
                 case (rx_data_in)
-                    8'h41: led1_out <= 1'b1; // 'A'
-                    8'h61: led1_out <= 1'b0; // 'a'
+                    8'h41: begin  // 'A' (ASCII 65)
+                        led1_out <= 1'b1;
+                        tx_start_trigger <= 1'b1;  // 文字列送信開始
+                        tx_start_request <= 1'b1;  // 送信要求をラッチ
+                    end
+                    8'h61: begin  // 'a' (ASCII 97)
+                        led1_out <= 1'b0;
+                    end
                     default: ;
                 endcase
+            end
+            
+            // 送信が開始されたらリクエストフラグをクリア
+            if (tx_fsm_state != STATE_IDLE) begin
+                tx_start_request <= 1'b0;
             end
         end
     end
     
-    // SW1のチャタリング除去ロジック (前回と全く同じ)
+    // --- SW1のチャタリング除去ロジック ---
     localparam DEBOUNCE_CNT_MAX = 50_000; 
     logic [$clog2(DEBOUNCE_CNT_MAX):0] debounce_counter; 
     logic btn1_raw_q; 
@@ -95,35 +137,30 @@ module uart_controller #(
     end
     assign btn1_posedge = btn1_stable && !btn1_stable_q;
 
-    // 送信FSMのステート定義
-    localparam STATE_IDLE       = 3'd0; // アイドル状態
-    localparam STATE_SET_DATA   = 3'd1; // TXモジュールにデータを与える
-    localparam STATE_ACTIVATE_TX= 3'd2; // TXモジュールに送信をトリガー
-    localparam STATE_WAIT_TX    = 3'd3; // TXモジュールが1文字送信を終えるのを待つ
-    localparam STATE_DONE       = 3'd4; // 全文字送信完了後のアイドル前ステート
+    // --- 送信FSMのステート定義 ---
+    typedef enum logic [2:0] {
+        STATE_IDLE       = 3'd0, // アイドル状態
+        STATE_SET_DATA   = 3'd1, // TXモジュールにデータを与える
+        STATE_ACTIVATE_TX= 3'd2, // TXモジュールに送信をトリガー
+        STATE_WAIT_TX    = 3'd3, // TXモジュールが1文字送信を終えるのを待つ
+        STATE_DONE       = 3'd4  // 全文字送信完了後のアイドル前ステート
+    } tx_fsm_state_t;
 
-    logic [2:0] tx_fsm_state; // FSMステートのビット幅を3ビットに拡張 (4ステート以上)
-    logic [2:0] tx_char_index; // 送信する文字のインデックス (8文字なので3ビット)
-
+    tx_fsm_state_t tx_fsm_state; // FSMステート
+    logic [2:0] tx_char_index;   // 送信する文字のインデックス (8文字なので3ビット)
     logic [WAIT_COUNTER_WIDTH:0] tx_wait_counter; // 待機カウンタ
 
-    // tx_char_data_to_send_comb は combinational logic で定義
+    // 送信データの選択（combinational logic）
     logic [7:0] tx_char_data_to_send_comb;
     always_comb begin
-        case (tx_char_index)
-            3'd0: tx_char_data_to_send_comb = 8'h5A; // 0x5A (1回目)
-            3'd1: tx_char_data_to_send_comb = 8'h5A; // 0x5A (2回目)
-            3'd2: tx_char_data_to_send_comb = 8'h6B; // 0x6B (1回目)
-            3'd3: tx_char_data_to_send_comb = 8'h6B; // 0x6B (2回目)
-            3'd4: tx_char_data_to_send_comb = 8'h7C; // 0x7C (1回目)
-            3'd5: tx_char_data_to_send_comb = 8'h7C; // 0x7C (2回目)
-            3'd6: tx_char_data_to_send_comb = 8'h8D; // 0x8D (1回目)
-            3'd7: tx_char_data_to_send_comb = 8'h8D; // 0x8D (2回目)
-            default: tx_char_data_to_send_comb = 8'b0;
-        endcase
+        if (tx_char_index < TX_STRING_LENGTH) begin
+            tx_char_data_to_send_comb = tx_string[tx_char_index];
+        end else begin
+            tx_char_data_to_send_comb = 8'b0;
+        end
     end
 
-    // 送信FSMのメインロジック
+    // --- 送信FSMのメインロジック ---
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             tx_fsm_state     <= STATE_IDLE;
@@ -137,8 +174,12 @@ module uart_controller #(
             case (tx_fsm_state)
                 STATE_IDLE: begin
                     tx_data_out <= 8'b0; // アイドル時はTXデータをクリア
-                    if (btn1_posedge) begin // 安定したSW1の立ち上がりエッジ検出
-                        tx_char_index <= 3'd0;           // 最初の文字 0x5A (1回目) から開始
+                    
+                    // 送信開始条件：SW1押下またはPCから'A'受信
+                    // 送信中でない場合のみ新しい送信を開始
+                    // 複数の条件でトリガーを検出
+                    if ((btn1_posedge || tx_start_trigger || tx_start_trigger_q || tx_start_request) && !tx_busy_in) begin
+                        tx_char_index <= 3'd0;           // 最初の文字から開始
                         tx_fsm_state  <= STATE_SET_DATA; // データセットステートへ
                     end
                 end
@@ -151,7 +192,7 @@ module uart_controller #(
 
                 STATE_ACTIVATE_TX: begin
                     tx_data_out <= tx_char_data_to_send_comb; // データは引き続きセットしておく
-                    tx_act_out  <= 1'b1;                  // 送信トリガーをアサート (1クロックパルス)
+                    tx_act_out  <= 1'b1;                     // 送信トリガーをアサート (1クロックパルス)
 
                     // 送信トリガー後、強制待機ステートへ遷移
                     tx_fsm_state <= STATE_WAIT_TX;
@@ -162,12 +203,12 @@ module uart_controller #(
                     tx_data_out <= tx_char_data_to_send_comb; // データはTXモジュールに保持させ続ける
                     if (tx_wait_counter == '0) begin // 指定されたクロック期間待機が完了
                         // 次の文字へ進むか、全文字送信完了か
-                        if (tx_char_index == 3'd7) begin // 最後の文字を送信したので完了
+                        if (tx_char_index == TX_STRING_LENGTH - 1) begin // 最後の文字を送信したので完了
                             tx_fsm_state  <= STATE_DONE;    // 送信完了待ちステートへ
                             tx_char_index <= 3'd0;          // インデックスをリセット
                         end else begin
                             tx_char_index <= tx_char_index + 3'd1; // 次の文字へ
-                            tx_fsm_state  <= STATE_SET_DATA; // 次の文字をセットするステートへ
+                            tx_fsm_state  <= STATE_SET_DATA;       // 次の文字をセットするステートへ
                         end
                     end else begin
                         tx_wait_counter <= tx_wait_counter - 1; // カウンタをデクリメント
@@ -193,10 +234,12 @@ module uart_controller #(
         end
     end
 
-    // デバッグ用LEDの駆動
+    // --- デバッグ用LEDの駆動 ---
     assign led_tx_idle   = (tx_fsm_state == STATE_IDLE);
     // 送信処理全体で点灯
-    assign led_tx_send   = (tx_fsm_state == STATE_SET_DATA || tx_fsm_state == STATE_ACTIVATE_TX || tx_fsm_state == STATE_WAIT_TX); 
+    assign led_tx_send   = (tx_fsm_state == STATE_SET_DATA || 
+                            tx_fsm_state == STATE_ACTIVATE_TX || 
+                            tx_fsm_state == STATE_WAIT_TX); 
     assign led_tx_done   = (tx_fsm_state == STATE_DONE);
 
 endmodule
